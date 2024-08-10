@@ -9,6 +9,12 @@ import { EthersAdapter, SafeFactory, SafeAccountConfig } from '@safe-global/prot
 import Safe from '@safe-global/protocol-kit';
 import { SafeTransactionData } from '@safe-global/safe-core-sdk-types';
 
+import circuit from '../circuits/target/circuits.json';
+
+import MTBridge from "./depositLib/mt-bridge";
+const MerkleTreeOwners = MTBridge;
+import {verifyMerkleProof, getLeafValue} from "./depositLib/mt-bridge-utils";
+
 async function getOwnerAdapters(): Promise<EthersAdapter[]> {
     return (await ethers.getSigners()).slice(0, 3).map((signer) => new EthersAdapter({ ethers, signerOrProvider: signer }));
 }
@@ -109,8 +115,24 @@ describe("ZkSafeModule", function () {
         console.log("zkSafeModule: ", zkSafeModuleAddress);
 
         safeAccountConfig.to = zkSafeModuleAddress;
-        const iface = new ethers.Interface(["function enableModule(address module)"]);
-        safeAccountConfig.data = iface.encodeFunctionData("enableModule", [zkSafeModuleAddress]);
+
+        const height = 32;
+
+        const merkleTree = new MerkleTreeOwners(height);
+        merkleTree.add(
+            getLeafValue(owners[0])
+        );
+        merkleTree.add(
+            getLeafValue(owners[1])
+        );
+        merkleTree.add(
+            getLeafValue(owners[2])
+        );
+
+        const ownersRoot = merkleTree.getRoot();
+
+        const iface = new ethers.Interface(["function enableModule(bytes32 ownersRoot, uint256 threshold)"]);
+        safeAccountConfig.data = iface.encodeFunctionData("enableModule", [ownersRoot, 2]);
 
         safe = await safeFactory.deploySafe({ safeAccountConfig });
         const safeAddress = await safe.getAddress();
