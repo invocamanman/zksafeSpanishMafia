@@ -2,6 +2,7 @@ const ethers = require('ethers');
 const {
     generateZeroHashes,
 } = require('./mt-bridge-utils');
+const { buildPoseidon } = require("circomlibjs");
 
 class MTBridge {
     constructor(height) {
@@ -9,7 +10,7 @@ class MTBridge {
             throw new Error('MT height is not greater than 1');
         }
         this.height = height;
-        this.zeroHashes = generateZeroHashes(height);
+        
         const tree = [];
         for (let i = 0; i <= height; i++) {
             tree.push([]);
@@ -17,6 +18,12 @@ class MTBridge {
         this.tree = tree;
         this.dirty = false;
     }
+
+    async initializePoseidon() {
+        this.poseidon = await buildPoseidon();
+        this.zeroHashes = await generateZeroHashes(this.height);
+    }
+
 
     add(leaf) {
         this.dirty = true;
@@ -30,7 +37,8 @@ class MTBridge {
             for (let j = 0; j < child.length; j += 2) {
                 const leftNode = child[j];
                 const rightNode = (j + 1 < child.length) ? child[j + 1] : this.zeroHashes[i];
-                parent[j / 2] = ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [leftNode, rightNode]);
+                parent[j / 2] = this.poseidon([leftNode, rightNode]);
+                // parent[j / 2] = ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [leftNode, rightNode]);
             }
         }
         this.dirty = false;
@@ -59,7 +67,8 @@ class MTBridge {
     getRoot() {
         if (this.tree[0][0] === undefined) {
             // No leafs in the tree, calculate root with all leafs to 0
-            return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [this.zeroHashes[this.height - 1], this.zeroHashes[this.height - 1]]);
+            return this.poseidon([this.zeroHashes[this.height - 1], this.zeroHashes[this.height - 1]]);
+            // return ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [this.zeroHashes[this.height - 1], this.zeroHashes[this.height - 1]]);
         }
         if (this.dirty) this.calcBranches();
 

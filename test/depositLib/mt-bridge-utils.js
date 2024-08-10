@@ -1,3 +1,4 @@
+const { buildPoseidon } = require('circomlibjs');
 const ethers = require('ethers');
 
 /**
@@ -5,11 +6,14 @@ const ethers = require('ethers');
  * @param {Number} height - Merkle tree height
  * @returns {Array} - Zero hashes array with length: height - 1
  */
-function generateZeroHashes(height) {
+async function generateZeroHashes(height) {
     const zeroHashes = [];
     zeroHashes.push(ethers.ZeroHash);
+    const poseidon = await buildPoseidon();
+    
     for (let i = 1; i < height; i++) {
-        zeroHashes.push(ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [zeroHashes[i - 1], zeroHashes[i - 1]]));
+        // zeroHashes.push(ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [zeroHashes[i - 1], zeroHashes[i - 1]]));
+        zeroHashes.push(poseidon( [zeroHashes[i - 1], zeroHashes[i - 1]]));
     }
 
     return zeroHashes;
@@ -23,13 +27,16 @@ function generateZeroHashes(height) {
  * @param {BigNumber} root - Merkle root
  * @returns {Boolean} - Whether the merkle proof is correct or not
  */
-function verifyMerkleProof(leaf, smtProof, index, root) {
+async function verifyMerkleProof(leaf, smtProof, index, root) {
+    const poseidon = await buildPoseidon();
     let value = leaf;
     for (let i = 0; i < smtProof.length; i++) {
         if (Math.floor(index / 2 ** i) % 2 !== 0) {
-            value = ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [smtProof[i], value]);
+            value = poseidon([smtProof[i], value]);
+            // value = ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [smtProof[i], value]);
         } else {
-            value = ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [value, smtProof[i]]);
+            value = poseidon([value, smtProof[i]]);
+            // value = ethers.solidityPackedKeccak256(['bytes32', 'bytes32'], [value, smtProof[i]]);
         }
     }
 
@@ -47,8 +54,10 @@ function verifyMerkleProof(leaf, smtProof, index, root) {
  * @param {BigNumber} metadataHash - Hash of the metadata
  * @returns {Boolean} - Leaf value
  */
-function getLeafValue(address) {
-    return ethers.solidityPackedKeccak256(['address'], [address]);
+async function getLeafValue(address) {
+    const poseidon = await buildPoseidon();
+    return poseidon([address]);
+    // return ethers.solidityPackedKeccak256(['address'], [address]);
 }
 
 module.exports = {

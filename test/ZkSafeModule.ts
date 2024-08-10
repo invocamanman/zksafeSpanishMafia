@@ -148,14 +148,15 @@ describe("ZkSafeModule", function () {
         const height = 32;
 
         const merkleTree = new MerkleTreeOwners(height);
+        await merkleTree.initializePoseidon();
         merkleTree.add(
-            getLeafValue(owners[0])
+            await getLeafValue(owners[0])
         );
         merkleTree.add(
-            getLeafValue(owners[1])
+            await getLeafValue(owners[1])
         );
         merkleTree.add(
-            getLeafValue(owners[2])
+            await getLeafValue(owners[2])
         );
 
         const ownersRoot = merkleTree.getRoot();
@@ -220,23 +221,30 @@ describe("ZkSafeModule", function () {
         const owners = (await safe.getOwners());
         
         const merkleTree = new MerkleTreeOwners(32);
-        
+        await merkleTree.initializePoseidon();
+
         merkleTree.add(
-            getLeafValue(owners[0])
+            await getLeafValue(owners[0])
         );
         merkleTree.add(
-            getLeafValue(owners[1])
+            await getLeafValue(owners[1])
         );
         merkleTree.add(
-            getLeafValue(owners[2])
+            await getLeafValue(owners[2])
         );
 
-        const ownersRoot = merkleTree.getRoot();
+        const ownersRoot = ethers.toBigInt(merkleTree.getRoot().reverse()).toString();
 
         const signatures = [];
         for(let i = 0; i < owners.length; ++i) {
             const sig = await ownerAdapters[i].signTypedData(safeTypedData);
-            const siblingPath = merkleTree.getProofTreeByValue(getLeafValue(owners[i])).map(v => Array.from(ethers.getBytes(v)));
+            const siblingPath = merkleTree.getProofTreeByValue(await getLeafValue(owners[i])).map(v => 
+                {
+                    const vv = ethers.toBigInt(v);
+                    console.log(vv > 21888242871839275222246405745257275088548364400416034343698204186575808495617n);
+                    return vv.toString();
+                });
+        
             signatures.push({sig, siblingPath, index: i});
         }
         
@@ -249,10 +257,12 @@ describe("ZkSafeModule", function () {
             signers: padArray(signatures.map((sig) => extractCoordinates(ethers.SigningKey.recoverPublicKey(txHash, sig.sig))), 10, nil_pubkey),
             signatures: padArray(signatures.map(s => s.sig).map(extractRSFromSignature), 10, nil_signature),
             txn_hash: Array.from(ethers.getBytes(txHash)),
-            owners_root: Array.from(ethers.getBytes(ownersRoot)),
+            owners_root: ownersRoot,
             indices: padArray(signatures.map(s => s.index), 10, 0),
             paths: padArray(signatures.map(s => s.siblingPath), 10, signatures[0].siblingPath)
         };
+
+        console.log(input);
         
         const zkSafe: FullNoir = await fullNoirFromCircuit('zkSafe');
         let { witness, returnValue } = await zkSafe.noir.execute(input);
