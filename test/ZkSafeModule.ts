@@ -13,6 +13,37 @@ import MTBridge from "./depositLib/mt-bridge";
 const MerkleTreeOwners = MTBridge;
 import {verifyMerkleProof, getLeafValue} from "./depositLib/mt-bridge-utils";
 
+import { CompiledCircuit } from '@noir-lang/types';
+import { ProofData } from '@noir-lang/types';
+
+import { join, resolve } from 'path';
+import { compile, createFileManager } from '@noir-lang/noir_wasm';
+
+type FullNoir = {
+    circuit: CompiledCircuit,
+    backend: BarretenbergBackend,
+    noir: Noir
+  }
+
+  
+// Helper function to get compiled Noir program
+async function getCircuit(name: string) {
+    const basePath = resolve(join('./circuits', name));
+    const fm = createFileManager(basePath);
+    const compiled = await compile(fm, basePath);
+    if (!('program' in compiled)) {
+      throw new Error('Compilation failed');
+    }
+    return compiled.program;
+  }
+
+async function fullNoirFromCircuit(circuitName: string): Promise<FullNoir> {
+    const circuit: CompiledCircuit = await getCircuit(circuitName);
+    const backend: BarretenbergBackend = new BarretenbergBackend(circuit, { threads: 12 });
+    const noir: Noir = new Noir(circuit, backend);
+    return { circuit, backend, noir };
+  }
+
 async function getOwnerAdapters(): Promise<EthersAdapter[]> {
     return (await ethers.getSigners()).slice(0, 3).map((signer) => new EthersAdapter({ ethers, signerOrProvider: signer }));
 }
@@ -175,10 +206,7 @@ describe("ZkSafeModule", function () {
             safeVersion: await safe.getContractVersion(),
             chainId: await ownerAdapters[0].getChainId(),
             safeTransactionData: safeTransactionData,
-        }; 
-        const sig1 = await ownerAdapters[0].signTypedData(safeTypedData);
-        const sig2 = await ownerAdapters[1].signTypedData(safeTypedData);
-        const sig3 = await ownerAdapters[2].signTypedData(safeTypedData);
+        };
 
         const nil_pubkey = {
             x: Array.from(ethers.getBytes("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")),
@@ -189,36 +217,51 @@ describe("ZkSafeModule", function () {
             ethers.getBytes("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"));
         const zero_address = new Array(20).fill(0);
 
-        const signatures = [sig2, sig3]; // sig1 is not included, threshold of 2 should be enough.
+        const owners = (await safe.getOwners());
         
-        // Sort signatures by address - this is how the Safe contract does it.
-        signatures.sort((sig1, sig2) => ethers.recoverAddress(txHash, sig1).localeCompare(ethers.recoverAddress(txHash, sig2)));
-
         const merkleTree = new MerkleTreeOwners(32);
         
-        const owners = (await safe.getOwners());
+        merkleTree.add(
+            getLeafValue(owners[0])
+        );
+        merkleTree.add(
+            getLeafValue(owners[1])
+        );
+        merkleTree.add(
+            getLeafValue(owners[2])
+        );
 
         const ownersRoot = merkleTree.getRoot();
 
-        let siblingPaths = owners.map((o, i) => merkleTree.getProofTreeByIndex(i).map(v => Array.from(ethers.getBytes(v))));
+        const signatures = [];
+        for(let i = 0; i < owners.length; ++i) {
+            const sig = await ownerAdapters[i].signTypedData(safeTypedData);
+            const siblingPath = merkleTree.getProofTreeByValue(getLeafValue(owners[i])).map(v => Array.from(ethers.getBytes(v)));
+            signatures.push({sig, siblingPath, index: i});
+        }
         
-        let indices = [1, 2, 0];
+        // Sort signatures by address - this is how the Safe contract does it.
+        signatures.sort((sig1, sig2) => ethers.recoverAddress(txHash, sig1.sig).localeCompare(ethers.recoverAddress(txHash, sig2.sig)));
+
 
         const input = {
             threshold: await safe.getThreshold(),
-            signers: padArray(signatures.map((sig) => extractCoordinates(ethers.SigningKey.recoverPublicKey(txHash, sig))), 10, nil_pubkey),
-            signatures: padArray(signatures.map(extractRSFromSignature), 10, nil_signature),
+            signers: padArray(signatures.map((sig) => extractCoordinates(ethers.SigningKey.recoverPublicKey(txHash, sig.sig))), 10, nil_pubkey),
+            signatures: padArray(signatures.map(s => s.sig).map(extractRSFromSignature), 10, nil_signature),
             txn_hash: Array.from(ethers.getBytes(txHash)),
             owners_root: Array.from(ethers.getBytes(ownersRoot)),
-            indices: padArray(indices, 10, 0),
-            paths: padArray(siblingPaths, 10, siblingPaths[0]),
+            indices: padArray(signatures.map(s => s.index), 10, 0),
+            paths: padArray(signatures.map(s => s.siblingPath), 10, signatures[0].siblingPath)
         };
+        
+        const zkSafe: FullNoir = await fullNoirFromCircuit('zkSafe');
+        let { witness, returnValue } = await zkSafe.noir.execute(input);
 
-        console.log(input);
-        correctProof = await noir.generateFinalProof(input);
-        console.log("correctProof", correctProof);
-
-        const verification = await noir.verifyFinalProof(correctProof);
+        console.log("Generating proof...");
+        const proof: ProofData = await zkSafe.backend.generateProof(witness);
+        console.log(proof);
+        console.log("Verifying proof...");
+        const verification: boolean = await zkSafe.backend.verifyProof(proof);
         expect(verification).to.be.true;
         console.log("verification in JS succeeded");
 
