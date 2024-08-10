@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.12;
 
-import {UltraVerifier} from "../circuits/contract/circuits/plonk_vk.sol";
+import {UltraVerifier} from "../circuits/zkSafe/contract/circuits/plonk_vk.sol";
 import "@gnosis.pm/safe-contracts/contracts/common/Enum.sol";
 import "@gnosis.pm/safe-contracts/contracts/GnosisSafe.sol";
 import "hardhat/console.sol";

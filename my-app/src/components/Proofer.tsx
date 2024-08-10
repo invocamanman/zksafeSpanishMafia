@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { Noir, ProofData } from "@noir-lang/noir_js";
-import circuit from "../../../circuits/target/circuits.json"; // Adjust the path as necessary
+import circuit from "../../../circuits/zkSafe/target/zkSafe.json"; // Adjust the path as necessary
 import { BarretenbergBackend } from "@noir-lang/backend_barretenberg";
 import {
   Box,

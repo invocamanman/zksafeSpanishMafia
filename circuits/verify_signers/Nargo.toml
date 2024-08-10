@@ -1,0 +1,7 @@
+[package]
+name = "verify_signers"
+type = "lib"
+authors = [""]
+compiler_version = "0.31.0"
+
+[dependencies]

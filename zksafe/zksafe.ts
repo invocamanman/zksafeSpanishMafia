@@ -3,7 +3,7 @@ import { EthersAdapter, SafeFactory, SafeAccountConfig } from '@safe-global/prot
 import { SafeTransactionData } from '@safe-global/safe-core-sdk-types';
 
 
-import circuit from '../circuits/target/circuits.json';
+import circuit from '../circuits/zkSafe/target/zkSafe.json';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { Noir } from '@noir-lang/noir_js';
 import { ethers } from "ethers";

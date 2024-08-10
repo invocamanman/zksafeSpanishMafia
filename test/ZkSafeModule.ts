@@ -2,14 +2,12 @@ import hre, { ethers, network, deployments } from 'hardhat';
 import { expect } from "chai";
 import { ZkSafeModule } from "../typechain-types";
 
-import circuit from '../circuits/target/circuits.json';
+import circuit from '../circuits/zkSafe/target/zkSafe.json';
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { Noir } from '@noir-lang/noir_js';
 import { EthersAdapter, SafeFactory, SafeAccountConfig } from '@safe-global/protocol-kit';
 import Safe from '@safe-global/protocol-kit';
 import { SafeTransactionData } from '@safe-global/safe-core-sdk-types';
-
-import circuit from '../circuits/target/circuits.json';
 
 import MTBridge from "./depositLib/mt-bridge";
 const MerkleTreeOwners = MTBridge;
@@ -196,13 +194,27 @@ describe("ZkSafeModule", function () {
         // Sort signatures by address - this is how the Safe contract does it.
         signatures.sort((sig1, sig2) => ethers.recoverAddress(txHash, sig1).localeCompare(ethers.recoverAddress(txHash, sig2)));
 
+        const merkleTree = new MerkleTreeOwners(32);
+        
+        const owners = (await safe.getOwners());
+
+        const ownersRoot = merkleTree.getRoot();
+
+        let siblingPaths = owners.map((o, i) => merkleTree.getProofTreeByIndex(i).map(v => Array.from(ethers.getBytes(v))));
+        
+        let indices = [1, 2, 0];
+
         const input = {
             threshold: await safe.getThreshold(),
             signers: padArray(signatures.map((sig) => extractCoordinates(ethers.SigningKey.recoverPublicKey(txHash, sig))), 10, nil_pubkey),
             signatures: padArray(signatures.map(extractRSFromSignature), 10, nil_signature),
             txn_hash: Array.from(ethers.getBytes(txHash)),
-            owners: padArray((await safe.getOwners()).map(addressToArray), 10, zero_address),
+            owners_root: Array.from(ethers.getBytes(ownersRoot)),
+            indices: padArray(indices, 10, 0),
+            paths: padArray(siblingPaths, 10, siblingPaths[0]),
         };
+
+        console.log(input);
         correctProof = await noir.generateFinalProof(input);
         console.log("correctProof", correctProof);
 

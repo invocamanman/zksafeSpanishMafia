@@ -1,0 +1,8 @@
+[package]
+name = "zkSafe"
+type = "bin"
+authors = [""]
+compiler_version = "0.31.0"
+
+[dependencies]
+verify_signers = { path = "../verify_signers" }
