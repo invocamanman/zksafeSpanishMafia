@@ -8,7 +8,7 @@ const ethers = require('ethers');
  */
 async function generateZeroHashes(height) {
     const zeroHashes = [];
-    zeroHashes.push(ethers.ZeroHash);
+    zeroHashes.push(ethers.getBytes(ethers.ZeroHash));
     const poseidon = await buildPoseidon();
     
     for (let i = 1; i < height; i++) {

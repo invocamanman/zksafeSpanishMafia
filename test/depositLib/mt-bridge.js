@@ -22,6 +22,7 @@ class MTBridge {
     async initializePoseidon() {
         this.poseidon = await buildPoseidon();
         this.zeroHashes = await generateZeroHashes(this.height);
+        this.calcBranches();
     }
 
 

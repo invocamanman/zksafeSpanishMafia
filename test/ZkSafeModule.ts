@@ -238,14 +238,16 @@ describe("ZkSafeModule", function () {
         const signatures = [];
         for(let i = 0; i < owners.length; ++i) {
             const sig = await ownerAdapters[i].signTypedData(safeTypedData);
-            const siblingPath = merkleTree.getProofTreeByValue(await getLeafValue(owners[i])).map(v => 
+         
+            const siblingPath = merkleTree.getProofTreeByIndex(i).map(v => 
                 {
-                    const vv = ethers.toBigInt(v);
+                    const bigIntV= ethers.hexlify(v);
+                    const vCOpy = ethers.getBytes(bigIntV);
+                    const vv = ethers.toBigInt(vCOpy.reverse());
                     console.log(vv > 21888242871839275222246405745257275088548364400416034343698204186575808495617n);
                     return vv.toString();
-                });
-        
-            signatures.push({sig, siblingPath, index: i});
+                });    
+           signatures.push({sig, siblingPath, index: i});
         }
         
         // Sort signatures by address - this is how the Safe contract does it.
