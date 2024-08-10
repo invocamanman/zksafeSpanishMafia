@@ -267,10 +267,10 @@ describe("ZkSafeModule", function () {
 
 
         const safeAddress = await safe.getAddress();
-        const directVerification = await verifierContract.verify(correctProof["proof"], [...correctProof["publicInputs"].values()]);
+        const directVerification = await verifierContract.verify(proof.proof, [...proof.publicInputs.values()]);
         console.log("directVerification", directVerification);
 
-        const contractVerification = await zkSafeModule.verifyZkSafeTransaction(safeAddress, txHash, correctProof["proof"]);
+        const contractVerification = await zkSafeModule.verifyZkSafeTransaction(safeAddress, txHash, proof.proof);
         console.log("contractVerification", contractVerification);
 
         console.log("safe: ", safe);
@@ -282,7 +282,7 @@ describe("ZkSafeModule", function () {
               data: transaction["data"]["data"],
               operation: transaction["data"]["operation"],
             },
-            correctProof["proof"],
+            proof.proof,
             { gasLimit: 2000000 }
         );
 

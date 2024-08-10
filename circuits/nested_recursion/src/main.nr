@@ -5,7 +5,7 @@ fn main(
     verification_key: [Field; 114],
     public_inputs: pub [Field; 3],
     key_hash: Field,
-    proof: [Field; 93],
+    proof: [Field; 109],
     signers: [dep::verify_signers::PubKey; 10], 
     signatures: [dep::verify_signers::Signature; 10], 
     txn_hash: pub dep::verify_signers::Hash, 
