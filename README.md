@@ -30,6 +30,8 @@ Once the module sees such a proof accompanying a Safe transaction, the module ca
 zkVerify is a blockchain designed to provide zero knowledge proof verifications for any project or dApp using zero knowledge proofs. A high performance, public, decentralized, reliable, and secure blockchain, zkVerify has dedicated proof verification methods written in Rust, and available to be used in a modular and composable way.
 
 ### Project specs
+### zkVerify
+
 Implementation noir files:
 ```
 /circuits/zkSafe/src/main.nr
@@ -55,7 +57,7 @@ After having generated the proving artifacts we have forked and modified the `zk
 https://github.com/ignasirv/zkverify-example-typescript/tree/ultraplonk_verifier
 `````
 
-After submitted the ultraPlonk proof to zkVerifer the results are the following:
+After submitted the ultraPlonk proof to zkVerifier the results are the following:
 
 ````
 generating the proof for ultraPlonk
@@ -91,9 +93,9 @@ index.ts:81
 Sent 1 proof, elapsed time: 68.95s, result: succeeded, attestationId: 6458
 ````
 
-Finally we have verified the generated proof to zkVerify blockchain!!
+Finally we have verified the generated proof to zkVerify blockchain with ultraPlonk!!
 
-###Modify zkSafe to hide Safe owners and adding recursion
+### Modify zkSafe to hide Safe owners and adding recursion
 
 This project modifies the zkSafe circuits and contracts so that owners are also hidden. To achieve that, we have created a MerkleTree of owners with TREE_WIDTH=32. Then, only the merkle root (which is called owners_root) is stored in the smart contract and sent as public input of the circuit. Inside the circuit, it is enough to check that each of the signers is included in the merkle tree by verifying its siblings path.
 
@@ -103,7 +105,7 @@ To fulfill the requirements, we have modified `verify_signers` circuits. Instead
 
 We have been able to generate and verify a proof of the noir circuit via command line, and using the inputs inside `circuit/verify_signers/Prover.toml`. We have been unable to run the test in Typescript due to the size of the circuit (our circuit size is 2**20). This is a known issue https://github.com/AztecProtocol/aztec-packages/issues/7554
 
-###Recursive Proving
+### Recursive Proving
 
 Using the circuit described above, we have created the circuits to be able to verify recursively an arbitrary number of owners and signers via recursive proving. 
 
