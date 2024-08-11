@@ -101,3 +101,8 @@ I get error `Error: CLI Error: Failed to parse Solidity file: CliError("Failed t
 
 When running `nargo prove` its taking a lot of time, we think is because the usage of keccak is generating too many constrains
 For the scope of this hackathon and with our laptop hardware has been impossible for us to generate the proof so we will use a simple proof got from noir's hello world to continue with the verification process of zkVerify and for the sake of simplicity. We added all the necessary files at `/circuits/helloWorld`
+
+
+
+
+
