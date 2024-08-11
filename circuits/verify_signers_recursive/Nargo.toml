@@ -2,7 +2,7 @@
 name = "verify_signers_recursive"
 type = "bin"
 authors = [""]
-compiler_version = "0.31.0"
+compiler_version = "0.30.0"
 
 [dependencies]
 verify_signers = { path = "../verify_signers" }
