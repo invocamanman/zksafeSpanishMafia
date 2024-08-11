@@ -1,4 +1,5 @@
 use dep::verify_signers::verify_signers;
+use dep::std;
 
 #[recursive]
 fn main(
@@ -9,9 +10,9 @@ fn main(
     signers: [dep::verify_signers::PubKey; 10], 
     signatures: [dep::verify_signers::Signature; 10], 
     txn_hash: pub dep::verify_signers::Hash, 
-    owners_root: pub dep::verify_signers::Hash, 
+    owners_root: Field, 
     indices: [Field; 10], 
-    paths: [[[u8; 32]; dep::verify_signers::TREE_SIZE]; 10]
+    paths: [[Field; dep::verify_signers::TREE_SIZE]; 10]
 ) -> pub u64 {
     // verify signers so far are properly verified
     std::verify_proof(

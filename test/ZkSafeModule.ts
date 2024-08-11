@@ -3,6 +3,7 @@ import { expect } from "chai";
 import { ZkSafeModule } from "../typechain-types";
 
 import circuit from '../circuits/zkSafe/target/zkSafe.json';
+
 import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 import { Noir } from '@noir-lang/noir_js';
 import { EthersAdapter, SafeFactory, SafeAccountConfig } from '@safe-global/protocol-kit';
@@ -223,14 +224,11 @@ describe("ZkSafeModule", function () {
         // Our Nil signature is a signature with r and s set to 
         const nil_signature = Array.from(
             ethers.getBytes("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"));
-        const zero_address = new Array(20).fill(0);
 
         const owners = (await safe.getOwners());
         
         const merkleTree = new MerkleTreeOwners(32);
         await merkleTree.initializePoseidon();
-
-        const hola = await getLeafValue(owners[1]);
 
 
  	    const poseidon = await buildPoseidon();
@@ -349,6 +347,98 @@ describe("ZkSafeModule", function () {
         );
 
         expect(txn).to.be.revertedWith("Invalid proof");
+    });
+
+    it.skip("Should test recursion", async function() {
+        const nonce = await safe.getNonce();
+        const safeTransactionData : SafeTransactionData = {
+            to: ethers.ZeroAddress,
+            value: "0x0",
+            data: "0x",
+            operation: 0,
+            // default fields below
+            safeTxGas: "0x0",
+            baseGas: "0x0",
+            gasPrice: "0x0",
+            gasToken: ethers.ZeroAddress,
+            refundReceiver: ethers.ZeroAddress,
+            nonce, 
+        }
+
+        console.log("transaction", safeTransactionData);
+        const transaction = await safe.createTransaction({ transactions: [safeTransactionData] });
+        const txHash = await safe.getTransactionHash(transaction);
+        console.log("txHash", txHash);
+
+        // Let's generate three signatures for the owners of the Safe.
+        // ok, our siganture is a EIP-712 signature, so we need to sign the hash of the transaction.
+        let safeTypedData = {
+            safeAddress: await safe.getAddress(),
+            safeVersion: await safe.getContractVersion(),
+            chainId: await ownerAdapters[0].getChainId(),
+            safeTransactionData: safeTransactionData,
+        };
+
+        const nil_pubkey = {
+            x: Array.from(ethers.getBytes("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")),
+            y: Array.from(ethers.getBytes("0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"))
+        };
+        // Our Nil signature is a signature with r and s set to 
+        const nil_signature = Array.from(
+            ethers.getBytes("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"));
+
+        const owners = (await safe.getOwners());
+        
+        const merkleTree = new MerkleTreeOwners(32);
+        await merkleTree.initializePoseidon();
+
+
+ 	    const poseidon = await buildPoseidon();
+        const F = poseidon.F;
+
+
+        merkleTree.add(
+            await getLeafValue(owners[0])
+        );
+        merkleTree.add(
+            await getLeafValue(owners[1])
+        );
+        merkleTree.add(
+            await getLeafValue(owners[2])
+        );
+
+        const ownersRoot = F.toObject(merkleTree.getRoot());
+
+        const signatures = [];
+        for(let i = 0; i < owners.length; ++i) {
+            const sig = await ownerAdapters[i].signTypedData(safeTypedData);
+         
+            const siblingPath = merkleTree.getProofTreeByIndex(i).map(v => 
+                {
+                    return (F.toObject(v)).toString();
+                });    
+           signatures.push({sig, siblingPath, index: i});
+        }
+        
+        // Sort signatures by address - this is how the Safe contract does it.
+        signatures.sort((sig1, sig2) => ethers.recoverAddress(txHash, sig1.sig).localeCompare(ethers.recoverAddress(txHash, sig2.sig)));
+
+        const input = {
+            signers: padArray(signatures.map((sig) => extractCoordinates(ethers.SigningKey.recoverPublicKey(txHash, sig.sig))), 10, nil_pubkey),
+            signatures: padArray(signatures.map(s => s.sig).map(extractRSFromSignature), 10, nil_signature),
+            txn_hash: Array.from(ethers.getBytes(txHash)),
+            owners_root: ownersRoot,
+            indices: padArray(signatures.map(s => s.index), 10, 0),
+            paths: padArray(signatures.map(s => s.siblingPath), 10, signatures[0].siblingPath)
+        };
+
+        let numPubInputs = 2;
+
+        
+        const verify_signers_recursive: FullNoir = await fullNoirFromCircuit('verify_signers_recursive');
+        let { witness, returnValue } = await verify_signers_recursive.noir.execute(input);
+
+        // TODO: CONTINUE
     });
 
 });
