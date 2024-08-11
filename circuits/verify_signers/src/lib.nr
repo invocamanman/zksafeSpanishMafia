@@ -97,10 +97,6 @@ pub fn verify_signers<T>(
             let address_hash = poseidon::bn254::hash_1([result]);
             println(address_hash);
 
-            let test_poseidon:Field = poseidon::bn254::hash_1([0]);
-            println("POSEIDON");
-            println(test_poseidon.to_le_bytes(32));
-
             assert(owners_root == merkle_tree_root(address_hash, indices[i], paths[i]));
 
             curr_owner = address;

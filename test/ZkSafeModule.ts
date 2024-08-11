@@ -18,7 +18,7 @@ import { ProofData } from '@noir-lang/types';
 
 import { join, resolve } from 'path';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
-import { hexlify } from 'ethers';
+const { buildPoseidon } = require("circomlibjs");
 
 type FullNoir = {
     circuit: CompiledCircuit,
@@ -161,7 +161,7 @@ describe("ZkSafeModule", function () {
         );
         
         const ownersRoot = merkleTree.getRoot();
-            
+        
         const iface = new ethers.Interface(["function enableModule(bytes32 ownersRoot, uint256 threshold)"]);
         safeAccountConfig.data = iface.encodeFunctionData("enableModule", [ownersRoot, 2]);
 
@@ -196,6 +196,7 @@ describe("ZkSafeModule", function () {
             refundReceiver: ethers.ZeroAddress,
             nonce, 
         }
+
         console.log("transaction", safeTransactionData);
         const transaction = await safe.createTransaction({ transactions: [safeTransactionData] });
         const txHash = await safe.getTransactionHash(transaction);
@@ -226,10 +227,13 @@ describe("ZkSafeModule", function () {
 
         const hola = await getLeafValue(owners[1]);
 
-        const poseidonVal = merkleTree.poseidon([merkleTree.poseidon.F.e(1)]);
-        console.log(ethers.getBytes("0x29176100EAA962BDC1FE6C654D6A3C130E96A4D1168B33848B897DC502820133"));
-        console.log("HELLO", merkleTree.poseidon.F.e(poseidonVal));
-            exit;
+
+ 	    const poseidon = await buildPoseidon();
+        const F = poseidon.F;
+        // console.log(F.e(result))
+        // console.log(F.toObject(result))
+
+
         merkleTree.add(
             await getLeafValue(owners[0])
         );
@@ -240,20 +244,16 @@ describe("ZkSafeModule", function () {
             await getLeafValue(owners[2])
         );
 
-        console.log(merkleTree.tree[0].map(h => hexlify(h)));
-        const ownersRoot = ethers.toBigInt(merkleTree.getRoot().reverse()).toString();
+        const ownersRoot = F.toObject(merkleTree.getRoot());
 
+        console.log(merkleTree.tree[0].map(x => ethers.toQuantity(F.toObject(x))))
         const signatures = [];
         for(let i = 0; i < owners.length; ++i) {
             const sig = await ownerAdapters[i].signTypedData(safeTypedData);
          
             const siblingPath = merkleTree.getProofTreeByIndex(i).map(v => 
                 {
-                    const bigIntV= ethers.hexlify(v);
-                    const vCOpy = ethers.getBytes(bigIntV);
-                    const vv = ethers.toBigInt(vCOpy.reverse());
-                    console.log(vv > 21888242871839275222246405745257275088548364400416034343698204186575808495617n);
-                    return vv.toString();
+                    return (F.toObject(v)).toString();
                 });    
            signatures.push({sig, siblingPath, index: i});
         }
@@ -261,7 +261,9 @@ describe("ZkSafeModule", function () {
         // Sort signatures by address - this is how the Safe contract does it.
         signatures.sort((sig1, sig2) => ethers.recoverAddress(txHash, sig1.sig).localeCompare(ethers.recoverAddress(txHash, sig2.sig)));
 
-
+        
+        console.log({signatures})
+        clear
         const input = {
             threshold: await safe.getThreshold(),
             signers: padArray(signatures.map((sig) => extractCoordinates(ethers.SigningKey.recoverPublicKey(txHash, sig.sig))), 10, nil_pubkey),
