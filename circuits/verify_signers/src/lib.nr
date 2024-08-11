@@ -66,7 +66,7 @@ pub fn verify_signers<T>(
         // check only if the signature is not NIL
         if (signers[i].x != g_x) & (signers[i].y != g_y) {
             // First, check that it verifies
-            // assert(std::ecdsa_secp256k1::verify_signature(signers[i].x, signers[i].y, signatures[i], txn_hash));
+            assert(std::ecdsa_secp256k1::verify_signature(signers[i].x, signers[i].y, signatures[i], txn_hash));
             // Then, find the address to which the verifying key corresponds.
             let mut uncompressed_pubkey = [0; 64];
             for j in 0..32 {
@@ -92,10 +92,7 @@ pub fn verify_signers<T>(
                 v *= 256 as Field;
             }
 
-            println(result);
-
             let address_hash = poseidon::bn254::hash_1([result]);
-            println(address_hash);
 
             assert(owners_root == merkle_tree_root(address_hash, indices[i], paths[i]));
 

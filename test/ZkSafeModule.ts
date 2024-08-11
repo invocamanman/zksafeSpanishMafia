@@ -230,8 +230,6 @@ describe("ZkSafeModule", function () {
 
  	    const poseidon = await buildPoseidon();
         const F = poseidon.F;
-        // console.log(F.e(result))
-        // console.log(F.toObject(result))
 
 
         merkleTree.add(
@@ -246,7 +244,6 @@ describe("ZkSafeModule", function () {
 
         const ownersRoot = F.toObject(merkleTree.getRoot());
 
-        console.log(merkleTree.tree[0].map(x => ethers.toQuantity(F.toObject(x))))
         const signatures = [];
         for(let i = 0; i < owners.length; ++i) {
             const sig = await ownerAdapters[i].signTypedData(safeTypedData);
@@ -261,9 +258,6 @@ describe("ZkSafeModule", function () {
         // Sort signatures by address - this is how the Safe contract does it.
         signatures.sort((sig1, sig2) => ethers.recoverAddress(txHash, sig1.sig).localeCompare(ethers.recoverAddress(txHash, sig2.sig)));
 
-        
-        console.log({signatures})
-        clear
         const input = {
             threshold: await safe.getThreshold(),
             signers: padArray(signatures.map((sig) => extractCoordinates(ethers.SigningKey.recoverPublicKey(txHash, sig.sig))), 10, nil_pubkey),
@@ -274,7 +268,6 @@ describe("ZkSafeModule", function () {
             paths: padArray(signatures.map(s => s.siblingPath), 10, signatures[0].siblingPath)
         };
 
-        console.log(input);
         
         const zkSafe: FullNoir = await fullNoirFromCircuit('zkSafe');
         let { witness, returnValue } = await zkSafe.noir.execute(input);
