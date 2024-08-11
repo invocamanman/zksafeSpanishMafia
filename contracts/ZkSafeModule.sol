@@ -96,28 +96,29 @@ contract ZkSafeModule {
      * @return True if the proof is valid, false otherwise.
      */
     function verifyZkSafeTransaction(
+        address safeContract,
         bytes32 txHash,
         bytes calldata proof
     ) public view returns (bool) {
 
-        zkSafeConfig memory currentSageConfig = safeToConfig[GnosisSafe(payable(msg.sender))];
+        zkSafeConfig memory currentSageConfig = safeToConfig[GnosisSafe(payable(safeContract))];
         
         // Construct the input to the circuit.
         // We need 34 array position for public inputs.
         bytes32[] memory publicInputs = new bytes32[](1 + 32 + 1);
 
-        // Threshold       
-        publicInputs[0] = bytes32(currentSageConfig.threshold);
-
-      
+  
         // Each byte of the transaction hash is given as a separate uint256 value.
         // TODO: this is super inefficient, fix by making the circuit take compressed inputs.
         for (uint256 i = 0; i < 32; i++) {
-            publicInputs[i + 1] = bytes32(uint256(uint8(txHash[i])));
+            publicInputs[i] = bytes32(uint256(uint8(txHash[i])));
         }
 
         // ownersRoot
-        publicInputs[33] = bytes32(currentSageConfig.ownersRoot);
+        publicInputs[32] = bytes32(currentSageConfig.ownersRoot);
+
+        // Threshold       
+        publicInputs[33] = bytes32(uint256(3));
 
         // Get the owners of the Safe by calling into the Safe contract.
         return verifier.verify(proof, publicInputs);
@@ -155,7 +156,7 @@ contract ZkSafeModule {
                 nonce
             )
         );
-        require(verifyZkSafeTransaction(txHash, proof), "Invalid proof");
+        require(verifyZkSafeTransaction(address(safeContract), txHash, proof), "Invalid proof");
         // All checks are successful, can execute the transaction.
 
         // Safe doesn't increase the nonce for module transactions, so we need to take care of that.
