@@ -93,6 +93,34 @@ Sent 1 proof, elapsed time: 68.95s, result: succeeded, attestationId: 6458
 
 Finally we have verified the generated proof to zkVerify blockchain!!
 
+###Modify zkSafe to hide Safe owners and adding recursion
+
+This project modifies the zkSafe circuits and contracts so that owners are also hidden. To achieve that, we have created a MerkleTree of owners with TREE_WIDTH=32. Then, only the merkle root (which is called owners_root) is stored in the smart contract and sent as public input of the circuit. Inside the circuit, it is enough to check that each of the signers is included in the merkle tree by verifying its siblings path.
+
+To accomplish this, we have implemented in Noir a function to verify a merkle tree leaf. It can be found inside `circuits/verify_signers/src/lib.nr`. The merkle tree is built using Poseidon hash.
+
+To fulfill the requirements, we have modified `verify_signers` circuits. Instead of sending an array of owners, we provide for each of the signers its merkle path and the leaf index (which are private inputs). We also provide the owners_root as a public input which is obtained from the smart contract.
+
+We have been able to generate and verify a proof of the noir circuit via command line, and using the inputs inside `circuit/verify_signers/Prover.toml`. We have been unable to run the test in Typescript due to the size of the circuit (our circuit size is 2**20). This is a known issue https://github.com/AztecProtocol/aztec-packages/issues/7554
+
+###Recursive Proving
+
+Using the circuit described above, we have created the circuits to be able to verify recursively an arbitrary number of owners and signers via recursive proving. 
+
+Firstly, we have slightly modified the `verify_signers` circuit so that the threshold is not sent as a parameter anymore, and the circuit has one public output, which is the number of verified signatures. For each signature, the signer need to provide its leaf index and merkle path.
+
+Then, we have added two recursive circuits.
+
+- Recursion: It adds a verify_signers proof with and proves a new set of signers. It then returns as a public output the total number of verified signers so far.
+
+- Nested Recursion: It adds a recursive proof and proves a new set of signers. It then returns as a public output the total number of verifier signers so far.
+
+Notice that we have had to create two separate circuits since the proof size differs. 
+
+Finally, this public output is verified against the threshold in the Smart contract and also used to verify the last recursive proof.
+
+We have been unable to finish the testing due to the issue mentioned above
+
 ### Problems we faced
 With the proof, we followed the the instructions at `https://docs.zkverify.io/tutorials/submit-proofs/noir-ultraplonk-example` 
 We got stuck with an issue, when running `noir-cli key --input ./contract/hello_world/plonk_vk.sol --output ./target/vk.bin` 
