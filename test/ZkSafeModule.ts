@@ -128,6 +128,8 @@ describe("ZkSafeModule", function () {
             }
         };
         const safeFactory = await SafeFactory.create({ ethAdapter: ownerAdapters[0], contractNetworks });
+
+        // Could create multisig with nonexisting owners ( like 0xFFF) to be only a zkMultisig
         const safeAccountConfig: SafeAccountConfig =  {
             owners: owners,
             threshold: 2,
