@@ -160,7 +160,10 @@ describe("ZkSafeModule", function () {
             await getLeafValue(owners[2])
         );
         
-        const ownersRoot = merkleTree.getRoot();
+        const poseidon = await buildPoseidon();
+        const F = poseidon.F;
+
+        const ownersRoot = ethers.toQuantity(F.toObject(merkleTree.getRoot()));
         
         const iface = new ethers.Interface(["function enableModule(bytes32 ownersRoot, uint256 threshold)"]);
         safeAccountConfig.data = iface.encodeFunctionData("enableModule", [ownersRoot, 2]);
@@ -268,7 +271,9 @@ describe("ZkSafeModule", function () {
             paths: padArray(signatures.map(s => s.siblingPath), 10, signatures[0].siblingPath)
         };
 
-        
+
+        // It fails bc: https://github.com/AztecProtocol/aztec-packages/issues/7554
+        // But hte proofs runs outside JS
         const zkSafe: FullNoir = await fullNoirFromCircuit('zkSafe');
         let { witness, returnValue } = await zkSafe.noir.execute(input);
 
