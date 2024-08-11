@@ -56,7 +56,8 @@ async function verifyMerkleProof(leaf, smtProof, index, root) {
  */
 async function getLeafValue(address) {
     const poseidon = await buildPoseidon();
-    return poseidon([address]);
+    const bytes = ethers.getBytes(address);
+    return poseidon([bytes]);
     // return ethers.solidityPackedKeccak256(['address'], [address]);
 }
 

@@ -18,6 +18,7 @@ import { ProofData } from '@noir-lang/types';
 
 import { join, resolve } from 'path';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
+import { hexlify } from 'ethers';
 
 type FullNoir = {
     circuit: CompiledCircuit,
@@ -158,9 +159,9 @@ describe("ZkSafeModule", function () {
         merkleTree.add(
             await getLeafValue(owners[2])
         );
-
+        
         const ownersRoot = merkleTree.getRoot();
-
+            
         const iface = new ethers.Interface(["function enableModule(bytes32 ownersRoot, uint256 threshold)"]);
         safeAccountConfig.data = iface.encodeFunctionData("enableModule", [ownersRoot, 2]);
 
@@ -223,6 +224,12 @@ describe("ZkSafeModule", function () {
         const merkleTree = new MerkleTreeOwners(32);
         await merkleTree.initializePoseidon();
 
+        const hola = await getLeafValue(owners[1]);
+
+        const poseidonVal = merkleTree.poseidon([merkleTree.poseidon.F.e(1)]);
+        console.log(ethers.getBytes("0x29176100EAA962BDC1FE6C654D6A3C130E96A4D1168B33848B897DC502820133"));
+        console.log("HELLO", merkleTree.poseidon.F.e(poseidonVal));
+            exit;
         merkleTree.add(
             await getLeafValue(owners[0])
         );
@@ -233,6 +240,7 @@ describe("ZkSafeModule", function () {
             await getLeafValue(owners[2])
         );
 
+        console.log(merkleTree.tree[0].map(h => hexlify(h)));
         const ownersRoot = ethers.toBigInt(merkleTree.getRoot().reverse()).toString();
 
         const signatures = [];
